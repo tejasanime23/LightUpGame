@@ -46,20 +46,13 @@ class AlgorithmSolver {
     
     // Updates the board's lit status based on all placed bulbs
     private void updateIllumination() {
-        // Clear current lit status (except where bulbs are, but logic usually re-evaluates)
-        // Actually, GameBoard might manage its own state, but let's ensure we refresh it.
-        // For this solver, we might want to just re-calculate from scratch or incrementally.
-        // Let's assume re-calc for safety or handle incrementally if efficient.
-        // Simpler: clear all lit, re-light from all bulbs.
+        
         for (int r = 0; r < size; r++) {
             for (int c = 0; c < size; c++) {
-                // If it's a bulb, it's lit.
-                // If not, reset to false before re-lighting.
-                // But GameBoard.setLit is a simple setter.
-                // Better approach: Re-simulate light rays from all bulbs.
+                
                 if (board.getCellType(r, c) == CellType.EMPTY) {
                     board.setLit(r, c, board.hasBulb(r, c)); 
-                    board.setBlocked(r, c, false); // Reset blocked too?
+                    board.setBlocked(r, c, false); 
                 }
             }
         }
@@ -84,10 +77,6 @@ class AlgorithmSolver {
                     break;
                 }
                 board.setLit(nr, nc, true);
-                // Lit cells are "blocked" for new bulbs in strict Akari, 
-                // but usually we check if a bulb SEES another bulb.
-                // "Blocked" in original code seemed to mean "cannot place bulb here".
-                // In Akari, you can't place a bulb where it's already lit.
                 board.setBlocked(nr, nc, true); 
                 
                 nr += dir[0];
@@ -160,11 +149,6 @@ class AlgorithmSolver {
     }
 
     private Point runDeductionPhase(GameBoard targetBoard) {
-        // In the current architecture, the main board deduction uses the specific method
-        // that operates on 'this.board'. We ignore targetBoard here because 
-        // findOptimalBulbPlacement always passes this.board.
-        // For general correctness, we should refactor runDeductionPhase to take a board,
-        // but since we have a separate deduce() for SolverState, this is acceptable.
         return runDeductionPhase();
     }
 
@@ -422,7 +406,7 @@ class AlgorithmSolver {
     }
 
     private boolean applyInterfaceCondition(SolverState state, Point p, int type, boolean splitHorizontal, int sepIdx) {
-        // type 0: NO_LIGHT (Unlit? or just no cross flow?)
+        // type 0: NO_BULB
         // type 1: LIGHT_G1_TO_G2
         // type 2: LIGHT_G2_TO_G1
         // type 3: BULB
@@ -450,23 +434,13 @@ class AlgorithmSolver {
              // Propagate light into G1
              return state.propagateRay(r, c, splitHorizontal ? -1 : 0, splitHorizontal ? 0 : -1);
         } else { // NO_LIGHT
-             // Must NOT be lit? Or just no flow?
-             // Usually means "Blocked" for light flow, i.e., black cell behavior virtually?
-             // Or simply empty and unlit from CROSSING direction.
-             // We can enforce "cannot be lit by cross rays". 
-             // Implementation: Treat as wall for light propagation across boundary?
-             // Or assume it must be lit by S itself (if optimal)? 
-             // "NO_LIGHT" typically means empty and NOT passing light between G1/G2.
-             // We'll treat it as standard empty but verify it doesn't conduct later?
-             // Actually, if it's empty, it DOES conduct.
-             // So "NO_LIGHT" might mean "Empty but blocked from G1 and G2 sources"?
-             // Let's assume Type 0 means "Not Lit by boundary crossing". 
+             
              return true;
         }
     }
 
     private SolverState solveLocal(SolverState state, int r, int c, int h, int w) {
-        // Backtracking / Brute force for small region
+        
         List<Point> empties = state.getEmpties(r, c, h, w);
         return backtrack(state, empties, 0);
     }
@@ -488,9 +462,7 @@ class AlgorithmSolver {
             }
         }
         
-        // Try leaving empty
-        // Must ensure it ends up lit if we leave it?
-        // Deferred check.
+        
         SolverState next = new SolverState(state);
         // Maybe mark as "must be lit later"?
         SolverState res = backtrack(next, empties, idx + 1);
@@ -517,11 +489,7 @@ class AlgorithmSolver {
             for(int i=0; i<size; i++) {
                 for(int j=0; j<size; j++) {
                     this.grid[i][j] = board.getNumberValue(i, j); 
-                    // Note: Board uses -1 for black, 0-4 number. Empty is what?
-                    // GameBoard.getCellType logic: grid -1 is black, 0-4 numbered.
-                    // What is empty in grid? usually something else (e.g. -2 or Integer.MIN_VALUE, or 5).
-                    // GameBoard doesn't explicitly say.
-                    // Let's copy the raw grid value.
+                    
                     this.bulbs[i][j] = board.hasBulb(i, j);
                     this.lit[i][j] = board.isLit(i, j);
                     this.blocked[i][j] = board.isBlocked(i, j);
@@ -571,9 +539,7 @@ class AlgorithmSolver {
         boolean isLit(int r, int c) { return lit[r][c]; }
         boolean hasBulb(int r, int c) { return bulbs[r][c]; }
         
-        // ... include logic for propagateLight, deduce, etc. ...
-        // Simplification for artifact length: 
-        // I need to implement these helpers fully.
+        
         
         void propagateLight(int r, int c) {
             setLit(r, c, true);
@@ -653,10 +619,7 @@ class AlgorithmSolver {
                     for (int c = 0; c < size; c++) {
                         if (getCellType(r, c) == CellType.EMPTY && !lit[r][c] && !bulbs[r][c]) {
                              if (blocked[r][c]) {
-                                 // If it's blocked and unlit, is it a contradiction?
-                                 // "Blocked" means "cannot place bulb here". 
-                                 // If it's unlit and we can't place a bulb here, 
-                                 // can it be lit from elsewhere?
+                                 
                              }
                              
                              List<Point> sources = getPotentialSources(r, c);
@@ -699,9 +662,7 @@ class AlgorithmSolver {
                 int nc = c + dir[1];
                 if (isValid(nr, nc) && getCellType(nr, nc) == CellType.EMPTY 
                     && !bulbs[nr][nc] && !blocked[nr][nc]) {
-                        // Check if placement valid? 
-                        // D&C deduction usually checks basic constraints.
-                        // We assume "Free" means "not blocked/forbidden".
+                        
                         count++;
                 }
             }
