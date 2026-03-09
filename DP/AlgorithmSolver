@@ -87,7 +87,7 @@ class AlgorithmSolver {
         while (changed) {
             changed = false;
             for (int r = 0; r < size; r++) {
-                for (int c = 0; c < size; c++) {
+                for (int c = 0; c < size; c++) { 
                     if (board.getCellType(r, c) != CellType.NUMBERED) continue;
                     int k = board.getNumberValue(r, c);
                     int placed = countPlacedBulbsAround(r, c);
