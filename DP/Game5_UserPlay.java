@@ -5,21 +5,13 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.*;
 
-// ============================================================
-//  GAME 5 – User-Only Play
-// ============================================================
-//  Pure interactive game: ONLY the user places bulbs by
-//  clicking empty cells.  No computer moves ever happen.
-//   • Invalid placements are rejected silently (status bar).
-//   • A "Puzzle Solved!" dialog appears on completion.
-//   • A "New Game" button reloads a fresh puzzle.
-// ============================================================
+
 public class Game5_UserPlay extends JFrame {
 
     private static final int CELL_SIZE = 60;
 
     private GameBoard   board;
-    private AlgorithmSolver solver; // used only for validation helpers
+    private AlgorithmSolver solver; 
     private UserPanel   canvas;
     private JLabel      statusLabel;
     private int[][]     sharedPuzzle;
@@ -32,7 +24,6 @@ public class Game5_UserPlay extends JFrame {
         JPanel root = new JPanel(new BorderLayout(6, 6));
         root.setBorder(new EmptyBorder(8, 8, 8, 8));
 
-        // info label removed
 
         statusLabel = new JLabel(" ");
         statusLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
@@ -50,7 +41,6 @@ public class Game5_UserPlay extends JFrame {
         pack();
     }
 
-    // ── game lifecycle ───────────────────────────────────────
     public void loadSharedGame(int[][] puzzle) {
         this.sharedPuzzle = puzzle;
         loadGame(this.sharedPuzzle);
@@ -68,7 +58,6 @@ public class Game5_UserPlay extends JFrame {
         System.out.println("[G5] New user game – " + sz + "x" + sz);
     }
 
-    // ── user click handler ───────────────────────────────────
     private void handleClick(int row, int col) {
         if (!board.isValidCell(row, col)) return;
         if (board.getCellType(row, col) != CellType.EMPTY) {
@@ -77,7 +66,7 @@ public class Game5_UserPlay extends JFrame {
         }
         if (board.hasBulb(row, col)) {
             board.removeBulb(row, col);
-            solver.updateAfterBulbPlacement(row, col); // Recomputes illumination for all
+            solver.updateAfterBulbPlacement(row, col); 
             statusLabel.setText("Bulb removed at (" + row + ", " + col + ")");
             canvas.repaint();
             System.out.printf("[G5] User removed bulb at (%d,%d)%n", row, col);
@@ -85,7 +74,6 @@ public class Game5_UserPlay extends JFrame {
         }
 
         if (board.isBlocked(row, col)) {
-            // Still allow placing it so user can "make an invalid move"
             statusLabel.setText("Warning: Bulb placed in the light of another! (" + row + ", " + col + ")");
         } else {
             statusLabel.setText("Bulb placed at (" + row + ", " + col + ")");
@@ -102,14 +90,12 @@ public class Game5_UserPlay extends JFrame {
         }
     }
 
-    // Helper: Checks if a placed bulb is adjacent to a numbered block that has TOO MANY bulbs
     private boolean isBulbViolatingNumberConstraint(int r, int c) {
         if (!board.hasBulb(r, c)) return false;
         int[][] dirs = {{-1,0},{1,0},{0,-1},{0,1}};
         for (int[] d : dirs) {
             int nr = r + d[0], nc = c + d[1];
             if (board.isValidCell(nr, nc) && board.getCellType(nr, nc) == CellType.NUMBERED) {
-                // Count placed bulbs around THIS numbered block
                 int count = 0;
                 for (int[] d2 : dirs) {
                     int er = nr + d2[0], ec = nc + d2[1];
@@ -123,7 +109,6 @@ public class Game5_UserPlay extends JFrame {
         return false;
     }
 
-    // ── rendering + mouse ────────────────────────────────────
     private class UserPanel extends JPanel {
 
         UserPanel() {
