@@ -6,7 +6,7 @@ import java.awt.*;
 import java.awt.event.*;
 
 // ============================================================
-//  GAME 4 – User-Only Play
+//  GAME 5 – User-Only Play
 // ============================================================
 //  Pure interactive game: ONLY the user places bulbs by
 //  clicking empty cells.  No computer moves ever happen.
@@ -14,7 +14,7 @@ import java.awt.event.*;
 //   • A "Puzzle Solved!" dialog appears on completion.
 //   • A "New Game" button reloads a fresh puzzle.
 // ============================================================
-public class Game4_UserPlay extends JFrame {
+public class Game5_UserPlay extends JFrame {
 
     private static final int CELL_SIZE = 60;
 
@@ -24,9 +24,9 @@ public class Game4_UserPlay extends JFrame {
     private JLabel      statusLabel;
     private int[][]     sharedPuzzle;
 
-    public Game4_UserPlay(int[][] puzzle) {
+    public Game5_UserPlay(int[][] puzzle) {
         this.sharedPuzzle = puzzle;
-        setTitle("Game 4 – User Play");
+        setTitle("Game 5 – User Play");
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 
         JPanel root = new JPanel(new BorderLayout(6, 6));
@@ -65,7 +65,7 @@ public class Game4_UserPlay extends JFrame {
         pack();
         statusLabel.setText(" ");
         canvas.repaint();
-        System.out.println("[G4] New user game – " + sz + "x" + sz);
+        System.out.println("[G5] New user game – " + sz + "x" + sz);
     }
 
     // ── user click handler ───────────────────────────────────
@@ -80,7 +80,7 @@ public class Game4_UserPlay extends JFrame {
             solver.updateAfterBulbPlacement(row, col); // Recomputes illumination for all
             statusLabel.setText("Bulb removed at (" + row + ", " + col + ")");
             canvas.repaint();
-            System.out.printf("[G4] User removed bulb at (%d,%d)%n", row, col);
+            System.out.printf("[G5] User removed bulb at (%d,%d)%n", row, col);
             return;
         }
 
@@ -94,10 +94,10 @@ public class Game4_UserPlay extends JFrame {
         board.placeBulb(row, col);
         solver.updateAfterBulbPlacement(row, col);
         canvas.repaint();
-        System.out.printf("[G4] User placed bulb at (%d,%d)%n", row, col);
+        System.out.printf("[G5] User placed bulb at (%d,%d)%n", row, col);
 
         if (solver.isGameComplete()) {
-            System.out.println("[G4] Puzzle Solved by user!");
+            System.out.println("[G5] Puzzle Solved by user!");
             statusLabel.setText("🎉 You Solved It! Congratulations!");
         }
     }
