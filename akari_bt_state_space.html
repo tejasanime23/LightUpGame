@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Akari Backtracking Visualizer</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #0f172a;
+            --bg-card: #1e293b;
+            --accent: #38bdf8;
+            --accent-glow: rgba(56, 189, 248, 0.3);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+            --success: #22c55e;
+            --error: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-deep);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            padding: 1rem 2rem;
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            color: var(--accent);
+        }
+
+        main {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            overflow: hidden;
+        }
+
+        #sidebar {
+            background: var(--bg-card);
+            border-right: 1px solid var(--border);
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+        }
+
+        #board-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+            background: var(--bg-deep);
+            border-radius: 0.75rem;
+            border: 1px solid var(--border);
+        }
+
+        .grid {
+            display: grid;
+            gap: 2px;
+            background: var(--border);
+            border: 2px solid var(--border);
+        }
+
+        .cell {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #1e293b;
+            position: relative;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: bold;
+        }
+
+        .cell.black {
+            background: #000;
+            color: white;
+        }
+
+        .cell.lit {
+            background: #fef08a;
+        }
+
+        .cell.bulb::after {
+            content: '●';
+            color: #eab308;
+            font-size: 1.5rem;
+            text-shadow: 0 0 10px rgba(234, 179, 8, 0.5);
+        }
+
+        .cell.conflict {
+            background: #fee2e2;
+        }
+
+        .cell.invalid-bulb::after {
+            color: var(--error);
+        }
+
+        #controls {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+        }
+
+        .btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+        }
+
+        button {
+            padding: 0.625rem;
+            border-radius: 0.5rem;
+            border: 1px solid var(--border);
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            border-color: var(--accent);
+            background: var(--bg-card);
+        }
+
+        button.primary {
+            background: var(--accent);
+            color: var(--bg-deep);
+            border: none;
+        }
+
+        button.primary:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        #viz-area {
+            position: relative;
+            background: var(--bg-deep);
+            cursor: grab;
+        }
+
+        #viz-area:active {
+            cursor: grabbing;
+        }
+
+        .node circle {
+            fill: var(--bg-card);
+            stroke: var(--border);
+            stroke-width: 2px;
+            transition: all 0.3s;
+        }
+
+        .node.exploring circle {
+            stroke: var(--accent);
+            stroke-width: 3px;
+        }
+
+        .node.backtracked circle {
+            fill: #334155;
+            opacity: 0.5;
+        }
+
+        .node.solution circle {
+            fill: var(--success);
+            stroke: var(--success);
+        }
+
+        .node.pruned circle {
+            fill: var(--error);
+            stroke: var(--error);
+            opacity: 0.4;
+        }
+
+        .link {
+            fill: none;
+            stroke: var(--border);
+            stroke-width: 1.5px;
+            transition: all 0.3s;
+        }
+
+        .link.active {
+            stroke: var(--accent);
+            stroke-width: 2.5px;
+        }
+
+        .link.solution {
+            stroke: var(--success);
+            stroke-width: 3px;
+        }
+
+        #status-bar {
+            padding: 0.75rem 2rem;
+            background: var(--bg-card);
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .stat {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .stat-value {
+            color: var(--accent);
+            font-weight: 600;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: auto;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+        }
+
+        .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        #puzzle-select {
+            background: var(--bg-deep);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 6px 8px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Akari Backtracking - State Space Tree Visualizer</h1>
+
+        <div style="display:flex; gap:10px; align-items:center;">
+
+
+
+            <button id="direct-result">Show Final Result</button>
+
+        </div>
+    </header>
+
+    <main>
+        <section id="sidebar">
+            <div class="section-title">Current State</div>
+            <div id="board-container">
+                <!-- Grid will be injected here -->
+            </div>
+            <div style="display:flex; gap:10px; align-items:center;">
+
+                <select id="puzzle-select">
+                    <option value="0">3×3 Simple</option>
+                    <option value="1">3×3 Intro</option>
+                    <option value="2">4×4 Mini</option>
+                    <option value="3">4×4 Easy</option>
+                    <option value="4">5×5 Small</option>
+                    <option value="5">5×5 Medium</option>
+                    <option value="6">6×6 Classic</option>
+                    <option value="7">6×6 Sparse</option>
+                </select>
+
+
+            </div>
+
+            <div class="section-title">Controls</div>
+            <div id="controls">
+                <div class="control-group">
+                    <label>Animation Speed</label>
+                    <input type="range" id="speed" min="50" max="1000" value="300" step="50">
+                </div>
+                <div class="btn-group">
+                    <button id="play-pause">Start</button>
+                    <button id="reset">Reset</button>
+                </div>
+            </div>
+
+            <div class="section-title">Execution History</div>
+            <div id="decision-history"
+                style="font-size: 0.875rem; color: var(--text-secondary); max-height: 150px; overflow-y: auto; font-family: 'JetBrains Mono', monospace;">
+                Initializing solver...
+            </div>
+
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="dot" style="background: var(--accent)"></div> Exploring
+                </div>
+                <div class="legend-item">
+                    <div class="dot" style="background: var(--success)"></div> Solution
+                </div>
+                <div class="legend-item">
+                    <div class="dot" style="background: var(--error); opacity: 0.4"></div> Pruned
+                </div>
+                <div class="legend-item">
+                    <div class="dot" style="background: #334155"></div> Backtracked
+                </div>
+            </div>
+        </section>
+
+        <section id="viz-area">
+            <!-- D3 Visualization will be injected here -->
+        </section>
+    </main>
+
+    <div id="status-bar">
+        <div class="stat">Steps: <span id="step-count" class="stat-value">0</span></div>
+        <div id="active-op">Ready</div>
+        <div class="stat">Depth: <span id="depth-count" class="stat-value">0</span></div>
+    </div>
+
+    <script>
+        // Puzzle 1 from PuzzleDatabase.java
+        const PUZZLE = [
+
+            {
+                name: "3×3 Simple",
+                desc: "Smallest grid to visualize backtracking",
+                grid: [
+                    [5, 5, 5],
+                    [5, 0, 5],
+                    [5, 5, 5]
+                ]
+            },
+
+            {
+                name: "3×3 Intro",
+                desc: "Tiny puzzle, great to see the full tree",
+                grid: [
+                    [5, 0, 5],
+                    [5, 5, 5],
+                    [5, -1, 5]
+                ]
+            },
+
+            {
+                name: "4×4 Mini",
+                desc: "Very small puzzle for quick visualization",
+                grid: [
+                    [5, 5, 5, 5],
+                    [5, -1, 5, 5],
+                    [5, 1, 5, 5],
+                    [5, 5, 5, 5]
+                ]
+            },
+
+            {
+                name: "4×4 Easy",
+                desc: "Small grid, one numbered wall",
+                grid: [
+                    [5, 5, -1, 5],
+                    [5, 1, 5, 5],
+                    [5, 5, 5, -1],
+                    [5, -1, 5, 5]
+                ]
+            },
+
+            {
+                name: "5×5 Small",
+                desc: "Balanced puzzle with moderate branching",
+                grid: [
+                    [5, 5, 1, 5, 5],
+                    [5, -1, 5, -1, 5],
+                    [5, 5, 5, 5, 5],
+                    [5, -1, 5, -1, 5],
+                    [5, 5, 1, 5, 5]
+                ]
+            },
+
+            {
+                name: "5×5 Medium",
+                desc: "Moderate search space",
+                grid: [
+                    [5, 5, 1, 5, 5],
+                    [5, -1, 5, -1, 5],
+                    [1, 5, 5, 5, 0],
+                    [5, -1, 5, -1, 5],
+                    [5, 5, 1, 5, 5]
+                ]
+            },
+
+            {
+                name: "6×6 Classic",
+                desc: "Original puzzle with multiple constraints",
+                grid: [
+                    [5, -1, 5, 5, 1, 5],
+                    [5, 5, 5, 5, 5, 5],
+                    [1, 5, -1, 5, 5, 5],
+                    [5, 5, 5, -1, 5, 0],
+                    [5, 5, 5, 5, 5, 5],
+                    [5, 2, 5, 5, -1, 5]
+                ]
+            },
+
+            {
+                name: "6×6 Sparse",
+                desc: "Fewer walls, bigger search space",
+                grid: [
+                    [5, 5, 5, 5, 5, 5],
+                    [5, -1, 5, 2, 5, 5],
+                    [5, 5, 5, 5, -1, 5],
+                    [5, -1, 5, 5, 5, 5],
+                    [5, 5, 1, 5, -1, 5],
+                    [5, 5, 5, 5, 5, 5]
+                ]
+            }
+        ];
+
+        class AkariSolver {
+            constructor(grid) {
+                this.size = grid.length;
+                this.grid = grid.map(row => [...row]);
+                this.whiteCells = [];
+                for (let r = 0; r < this.size; r++) {
+                    for (let c = 0; c < this.size; c++) {
+                        if (this.grid[r][c] === 5) this.whiteCells.push({ r, c });
+                    }
+                }
+            }
+
+            // Logic methods (ported from Java)
+            inBounds(r, c) { return r >= 0 && r < this.size && c >= 0 && c < this.size; }
+
+            getIllumination(bulbs) {
+                const lit = Array.from({ length: this.size }, () => Array(this.size).fill(0));
+                const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                for (let r = 0; r < this.size; r++) {
+                    for (let c = 0; c < this.size; c++) {
+                        if (bulbs[r][c]) {
+                            lit[r][c]++;
+                            for (const [dr, dc] of dirs) {
+                                let nr = r + dr, nc = c + dc;
+                                while (this.inBounds(nr, nc) && this.grid[nr][nc] === 5) {
+                                    lit[nr][nc]++;
+                                    nr += dr; nc += dc;
+                                }
+                            }
+                        }
+                    }
+                }
+                return lit;
+            }
+
+            isValid(bulbs) {
+                const lit = this.getIllumination(bulbs);
+                // Rule: Bulbs can't see each other
+                for (let r = 0; r < this.size; r++) {
+                    for (let c = 0; c < this.size; c++) {
+                        if (bulbs[r][c] && lit[r][c] > 1) return false;
+                        if (this.grid[r][c] >= 0 && this.grid[r][c] <= 4) {
+                            let count = 0;
+                            const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                            for (const [dr, dc] of dirs) {
+                                let nr = r + dr, nc = c + dc;
+                                if (this.inBounds(nr, nc) && bulbs[nr][nc]) count++;
+                            }
+                            if (count > this.grid[r][c]) return false;
+                        }
+                    }
+                }
+                return true;
+            }
+
+            isComplete(bulbs) {
+                const lit = this.getIllumination(bulbs);
+                for (let r = 0; r < this.size; r++) {
+                    for (let c = 0; c < this.size; c++) {
+                        if (this.grid[r][c] === 5 && lit[r][c] === 0) return false;
+                        if (this.grid[r][c] >= 0 && this.grid[r][c] <= 4) {
+                            let count = 0;
+                            const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                            for (const [dr, dc] of dirs) {
+                                let nr = r + dr, nc = c + dc;
+                                if (this.inBounds(nr, nc) && bulbs[nr][nc]) count++;
+                            }
+                            if (count !== this.grid[r][c]) return false;
+                        }
+                    }
+                }
+                return true;
+            }
+
+            // Pruning: check if it's even possible to solve from here
+            canBeSolved(bulbs, index) {
+                if (!this.isValid(bulbs)) return false;
+
+                const lit = this.getIllumination(bulbs);
+
+                // Check if any numbered cell is already failed or impossible
+                for (let r = 0; r < this.size; r++) {
+                    for (let c = 0; c < this.size; c++) {
+                        if (this.grid[r][c] >= 0 && this.grid[r][c] <= 4) {
+                            let current = 0;
+                            let possible = 0;
+                            const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                            for (const [dr, dc] of dirs) {
+                                let nr = r + dr, nc = c + dc;
+                                if (this.inBounds(nr, nc)) {
+                                    if (bulbs[nr][nc]) current++;
+                                    else if (this.grid[nr][nc] === 5) {
+                                        // Is this cell still available in the future?
+                                        const cellIdx = this.whiteCells.findIndex(w => w.r === nr && w.c === nc);
+                                        if (cellIdx > index) possible++;
+                                    }
+                                }
+                            }
+                            if (current > this.grid[r][c]) return false; // Rule: over-satisfied
+                            if (current + possible < this.grid[r][c]) return false; // Rule: under-satisfiable
+                        }
+                    }
+                }
+
+                // Optimization: If a cell is currently NOT lit, can it EVER be lit?
+                for (let i = 0; i <= index; i++) {
+                    const cell = this.whiteCells[i];
+                    if (lit[cell.r][cell.c] === 0) {
+                        // This cell is in the past or present and NOT lit.
+                        // Can any future cell in the same row/col light it?
+                        let canBeLit = false;
+                        const dirs = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+                        for (const [dr, dc] of dirs) {
+                            let nr = cell.r + dr, nc = cell.c + dc;
+                            while (this.inBounds(nr, nc) && this.grid[nr][nc] === 5) {
+                                const fIdx = this.whiteCells.findIndex(w => w.r === nr && w.c === nc);
+                                if (fIdx > index) {
+                                    canBeLit = true;
+                                    break;
+                                }
+                                nr += dr; nc += dc;
+                            }
+                            if (canBeLit) break;
+                        }
+                        if (!canBeLit) return false;
+                    }
+                }
+
+                return true;
+            }
+        }
+
+        // --- UI & Visualization Management ---
+        const boardEl = document.getElementById('board-container');
+        const vizArea = document.getElementById('viz-area');
+        const playPauseBtn = document.getElementById('play-pause');
+        const resetBtn = document.getElementById('reset');
+        const speedInput = document.getElementById('speed');
+        const stepCountEl = document.getElementById('step-count');
+        const depthCountEl = document.getElementById('depth-count');
+        const activeOpEl = document.getElementById('active-op');
+        const historyEl = document.getElementById('decision-history');
+
+        const puzzleSelect = document.getElementById("puzzle-select");
+
+        puzzleSelect.onchange = () => {
+
+            currentPuzzle = parseInt(puzzleSelect.value);
+
+            solver = new AkariSolver(PUZZLE[currentPuzzle].grid);
+
+            steps = 0;
+            stack = [{ index: 0, bulbs: solver.grid.map(row => row.map(() => false)), node: treeData, choice: 0 }];
+
+            renderBoard(solver.grid.map(row => row.map(() => false)));
+
+            historyEl.innerHTML = "Puzzle changed — solver reset";
+            stepCountEl.textContent = 0;
+            depthCountEl.textContent = 0;
+
+            activeOpEl.textContent = "Ready";
+
+        };
+
+        let currentPuzzle = 0;
+        let solver = new AkariSolver(PUZZLE[currentPuzzle].grid); let steps = 0;
+        let isPlaying = false;
+        let animationTimer = null;
+        let treeData = { name: "Root", bulbs: solver.grid.map(row => row.map(() => false)), children: [], status: 'exploring', depth: 0 };
+        let nodeCounter = 0;
+
+        function renderBoard(bulbs) {
+            const size = solver.size;
+            const lit = solver.getIllumination(bulbs);
+            boardEl.innerHTML = '';
+            const grid = document.createElement('div');
+            grid.className = 'grid';
+            grid.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    if (solver.grid[r][c] === -1) cell.classList.add('black');
+                    else if (solver.grid[r][c] >= 0 && solver.grid[r][c] <= 4) {
+                        cell.classList.add('black');
+                        cell.textContent = solver.grid[r][c];
+                    } else {
+                        if (lit[r][c] > 0) cell.classList.add('lit');
+                        if (bulbs[r][c]) cell.classList.add('bulb');
+                    }
+                    grid.appendChild(cell);
+                }
+            }
+            boardEl.appendChild(grid);
+        }
+
+        // --- D3 Tree Logic ---
+        const width = vizArea.clientWidth;
+        const height = vizArea.clientHeight;
+        const svg = d3.select("#viz-area").append("svg")
+            .attr("width", "100%")
+            .attr("height", "100%")
+            .call(d3.zoom().on("zoom", (event) => g.attr("transform", event.transform)))
+            .append("g");
+
+        const g = svg.append("g").attr("transform", "translate(40,0)");
+        const treeLayout = d3.tree().nodeSize([40, 150]);
+
+        function updateViz() {
+            const root = d3.hierarchy(treeData);
+            treeLayout(root);
+
+            const nodes = root.descendants();
+            const links = root.links();
+
+            const link = g.selectAll(".link")
+                .data(links, d => d.target.data.id);
+
+            link.enter().append("path")
+                .attr("class", d => `link ${d.target.data.status === 'solution' ? 'solution' : ''}`)
+                .attr("d", d3.linkHorizontal().x(d => d.y).y(d => d.x))
+                .merge(link)
+                .transition().duration(200)
+                .attr("d", d3.linkHorizontal().x(d => d.y).y(d => d.x));
+
+            link.exit().remove();
+
+            const node = g.selectAll(".node")
+                .data(nodes, d => d.data.id);
+
+            const nodeEnter = node.enter().append("g")
+                .attr("class", d => `node ${d.data.status}`)
+                .attr("transform", d => `translate(${d.y},${d.x})`)
+                .on("click", (event, d) => renderBoard(d.data.bulbs));
+
+            nodeEnter.append("circle").attr("r", 10);
+            nodeEnter.append("text")
+                .attr("dy", ".35em")
+                .attr("x", d => d.children ? -15 : 15)
+                .attr("text-anchor", d => d.children ? "end" : "start")
+                .text(d => d.data.name)
+                .style("font-size", "10px")
+                .style("fill", "var(--text-secondary)");
+
+            const nodeUpdate = nodeEnter.merge(node)
+                .attr("class", d => `node ${d.data.status}`)
+                .transition().duration(200)
+                .attr("transform", d => `translate(${d.y},${d.x})`);
+
+            node.exit().remove();
+        }
+
+        // --- Solver Iteration ---
+        let stack = [{ index: 0, bulbs: solver.grid.map(row => row.map(() => false)), node: treeData, choice: 0 }];
+        treeData.id = nodeCounter++;
+
+        function step() {
+            if (stack.length === 0) {
+                isPlaying = false;
+                activeOpEl.textContent = "Finished (No Solution)";
+                return;
+            }
+
+            const state = stack[stack.length - 1];
+            const { index, bulbs, node, choice } = state;
+
+            steps++;
+            stepCountEl.textContent = steps;
+            depthCountEl.textContent = index;
+            renderBoard(bulbs);
+
+            if (index === solver.whiteCells.length) {
+                if (solver.isComplete(bulbs)) {
+                    node.status = 'solution';
+                    let curr = node;
+                    while (curr.parent) { curr.status = 'solution'; curr = curr.parent; }
+                    isPlaying = false;
+                    activeOpEl.textContent = "Solved!";
+                    activeOpEl.style.color = 'var(--success)';
+                    updateViz();
+                    return;
+                }
+                node.status = 'backtracked';
+                stack.pop();
+                updateViz();
+                return;
+            }
+
+            const pos = solver.whiteCells[index];
+
+            if (choice === 0) {
+                // Try Place Bulb
+                state.choice = 1;
+                const newBulbs = bulbs.map(row => [...row]);
+                newBulbs[pos.r][pos.c] = true;
+
+                const newNode = {
+                    name: `B[${pos.r},${pos.c}]`,
+                    bulbs: newBulbs,
+                    children: [],
+                    status: 'exploring',
+                    id: nodeCounter++,
+                    parent: node
+                };
+                node.children.push(newNode);
+
+                if (solver.canBeSolved(newBulbs, index)) {
+                    activeOpEl.textContent = `Placing bulb at ${pos.r}, ${pos.c}`;
+                    addToHistory(`Place (${pos.r},${pos.c}) - OK`);
+                    stack.push({ index: index + 1, bulbs: newBulbs, node: newNode, choice: 0 });
+                } else {
+                    newNode.status = 'pruned';
+                    addToHistory(`Place (${pos.r},${pos.c}) - PRUNED`);
+                }
+            } else if (choice === 1) {
+                // Try Skip
+                state.choice = 2;
+                const newNode = {
+                    name: `Skip[${pos.r},${pos.c}]`,
+                    bulbs: bulbs, // Same bulbs
+                    children: [],
+                    status: 'exploring',
+                    id: nodeCounter++,
+                    parent: node
+                };
+                node.children.push(newNode);
+
+                if (solver.canBeSolved(bulbs, index)) {
+                    activeOpEl.textContent = `Skipping bulb at ${pos.r}, ${pos.c}`;
+                    addToHistory(`Skip (${pos.r},${pos.c}) - OK`);
+                    stack.push({ index: index + 1, bulbs: bulbs, node: newNode, choice: 0 });
+                } else {
+                    newNode.status = 'pruned';
+                    addToHistory(`Skip (${pos.r},${pos.c}) - PRUNED`);
+                }
+            } else {
+                node.status = 'backtracked';
+                stack.pop();
+            }
+            updateViz();
+        }
+
+        function addToHistory(msg) {
+            const entry = document.createElement('div');
+            entry.textContent = `> ${msg}`;
+            historyEl.prepend(entry);
+        }
+
+        playPauseBtn.onclick = () => {
+            isPlaying = !isPlaying;
+            playPauseBtn.textContent = isPlaying ? "Pause" : "Resume";
+            if (isPlaying) {
+                const run = () => {
+                    if (!isPlaying) return;
+                    step();
+                    setTimeout(run, 1050 - speedInput.value);
+                };
+                run();
+            }
+        };
+
+        resetBtn.onclick = () => {
+            location.reload();
+        };
+
+        document.getElementById('direct-result').onclick = () => {
+            const startTime = performance.now();
+            while (isPlaying || stack.length > 0) {
+                step();
+                if (activeOpEl.textContent === "Solved!") break;
+            }
+            console.log(`Computed in ${performance.now() - startTime}ms`);
+        };
+
+        renderBoard(solver.grid.map(row => row.map(() => false)));
+        updateViz();
+    </script>
+</body>
+
+</html>
